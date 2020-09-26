@@ -4,25 +4,24 @@ LONGDOC = """
 Synonyms
 =====================
 
-Chinese Synonyms for Natural Language Processing and Understanding.
+中文近义词
 
-Welcome
--------
+https://github.com/chatopera/Synonyms
 
 """
 
 setup(
     name='synonyms',
-    version='2.0',
-    description='Chinese Synonyms for Natural Language Processing and Understanding',
+    version='3.13.0',
+    description='中文近义词：聊天机器人，智能问答工具包；Chinese Synonyms for Natural Language Processing and Understanding',
     long_description=LONGDOC,
     author='Hai Liang Wang, Hu Ying Xi',
-    author_email='hailiang.hl.wang@gmail.com',
-    url='https://github.com/huyingxi/Synonyms',
-    license="GPL 3.0",
+    author_email='hain@chatopera.com',
+    url='https://github.com/chatopera/Synonyms',
+    license="MIT",
     classifiers=[
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+        'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Natural Language :: Chinese (Simplified)',
         'Natural Language :: Chinese (Traditional)',
@@ -30,21 +29,24 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Topic :: Text Processing',
         'Topic :: Text Processing :: Indexing',
         'Topic :: Text Processing :: Linguistic'],
-    keywords='corpus,machine-learning,NLU,NLP,Synonyms,Similarity',
+    keywords='corpus,machine-learning,NLU,NLP,Synonyms,Similarity,chatbot',
     packages=find_packages(),
     install_requires=[
-        'jieba>=0.39',
-        'numpy>=1.13.1'
+        'six>=1.11.0',
+        'numpy>=1.13.1',
+        'scipy>=1.0.0',
+        'scikit-learn>=0.19.1'
     ],
     package_data={
         'synonyms': [
+            '**/**/idf.txt',
+            '**/**/*.p',
             '**/*.gz',
             '**/*.txt',
-            '**/*.vector',
             'LICENSE']})

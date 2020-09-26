@@ -12,7 +12,7 @@
 from __future__ import print_function
 from __future__ import division
 
-__copyright__ = "Copyright (c) 2017 . All Rights Reserved"
+__copyright__ = "Copyright (c) (2017-2020) Chatopera Inc. All Rights Reserved"
 __author__ = "Hai Liang Wang"
 __date__ = "2017-10-16:14:13:24"
 
@@ -28,11 +28,12 @@ if sys.version_info[0] < 3:
 else:
     xrange = range
 
-import utils
+from .utils import smart_open, to_unicode, cosine
 from numpy import dot, zeros, dtype, float32 as REAL,\
     double, array, vstack, fromstring, sqrt, newaxis,\
     ndarray, sum as np_sum, prod, ascontiguousarray,\
     argmax
+from sklearn.neighbors import KDTree
 
 class Vocab(object):
     """
@@ -68,6 +69,7 @@ class KeyedVectors():
         self.vocab = {}
         self.index2word = []
         self.vector_size = None
+        self.kdt = None
 
     @property
     def wv(self):
@@ -111,16 +113,16 @@ class KeyedVectors():
         """
         counts = None
         if fvocab is not None:
-            print("loading word counts from %s" % fvocab)
+            # print("loading word counts from %s" % fvocab)
             counts = {}
-            with utils.smart_open(fvocab) as fin:
+            with smart_open(fvocab) as fin:
                 for line in fin:
-                    word, count = utils.to_unicode(line).strip().split()
+                    word, count = to_unicode(line).strip().split()
                     counts[word] = int(count)
 
-        print("loading projection weights from %s" % fname)
-        with utils.smart_open(fname) as fin:
-            header = utils.to_unicode(fin.readline(), encoding=encoding)
+        # print("loading projection weights from %s" % fname)
+        with smart_open(fname) as fin:
+            header = to_unicode(fin.readline(), encoding=encoding)
             # throws for invalid file format
             vocab_size, vector_size = (int(x) for x in header.split())
             if limit:
@@ -133,9 +135,7 @@ class KeyedVectors():
                 word_id = len(result.vocab)
                 # print("word id: %d, word: %s, weights: %s" % (word_id, word, weights))
                 if word in result.vocab:
-                    print(
-                        "duplicate word '%s' in %s, ignoring all but first" %
-                        (word, fname))
+                    # print( "duplicate word '%s' in %s, ignoring all but first" % (word, fname))
                     return
                 if counts is None:
                     # most common scenario: no vocab file given. just make up
@@ -149,9 +149,7 @@ class KeyedVectors():
                 else:
                     # vocab file given, but word is missing -- set count to
                     # None (TODO: or raise?)
-                    print(
-                        "vocabulary file is incomplete: '%s' is missing" %
-                        word)
+                    # print( "vocabulary file is incomplete: '%s' is missing" % word)
                     result.vocab[word] = Vocab(index=word_id, count=None)
                 result.syn0[word_id] = weights
                 result.index2word.append(word)
@@ -172,7 +170,7 @@ class KeyedVectors():
                         # have)
                         if ch != b'\n':
                             word.append(ch)
-                    word = utils.to_unicode(
+                    word = to_unicode(
                         b''.join(word), encoding=encoding, errors=unicode_errors)
                     weights = fromstring(fin.read(binary_len), dtype=REAL)
                     add_word(word, weights)
@@ -182,7 +180,7 @@ class KeyedVectors():
                     if line == b'':
                         raise EOFError(
                             "unexpected end of input; is count incorrect or file otherwise damaged?")
-                    parts = utils.to_unicode(
+                    parts = to_unicode(
                         line.rstrip(),
                         encoding=encoding,
                         errors=unicode_errors).split(" ")
@@ -193,13 +191,16 @@ class KeyedVectors():
                     word, weights = parts[0], [REAL(x) for x in parts[1:]]
                     add_word(word, weights)
         if result.syn0.shape[0] != len(result.vocab):
-            print(
-                "duplicate words detected, shrinking matrix size from %i to %i" %
-                (result.syn0.shape[0], len(result.vocab)))
+            # print( "duplicate words detected, shrinking matrix size from %i to %i" % (result.syn0.shape[0], len(result.vocab)))
             result.syn0 = ascontiguousarray(result.syn0[: len(result.vocab)])
         assert (len(result.vocab), vector_size) == result.syn0.shape
-
-        print("loaded %s matrix from %s" % (result.syn0.shape, fname))
+        '''
+        KDTree
+        Build KDTree with vectors.
+        http://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KDTree.html#sklearn.neighbors.KDTree
+        '''
+        result.kdt = KDTree(result.syn0, leaf_size=10, metric = "euclidean")
+        # print("loaded %s matrix from %s" % (result.syn0.shape, fname))
         return result
 
     def word_vec(self, word, use_norm=False):
@@ -222,6 +223,24 @@ class KeyedVectors():
         else:
             raise KeyError("word '%s' not in vocabulary" % word)
 
+    def neighbours(self, word, size = 10):
+        """
+        Get nearest words with KDTree, ranking by cosine distance
+        """
+        word = word.strip()
+        v = self.word_vec(word)
+        [distances], [points] = self.kdt.query(array([v]), k = size, return_distance = True)
+        assert len(distances) == len(points), "distances and points should be in same shape."
+        words, scores = [], {}
+        for (x,y) in zip(points, distances):
+            w = self.index2word[x]
+            if w == word: s = 1.0
+            else: s = cosine(v, self.syn0[x])
+            if s < 0: s = abs(s)
+            words.append(w)
+            scores[w] = min(s, 1.0)
+        for x in sorted(words, key=scores.get, reverse=True):
+            yield x, scores[x]
 
 import unittest
 

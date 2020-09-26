@@ -12,7 +12,7 @@
 from __future__ import print_function
 from __future__ import division
 
-__copyright__ = "Copyright (c) 2017 . All Rights Reserved"
+__copyright__ = "Copyright (c) (2017-2020) Chatopera Inc. All Rights Reserved"
 __author__ = "Hai Liang Wang"
 __date__ = "2017-10-16:14:13:24"
 
@@ -25,11 +25,13 @@ import re
 import unicodedata
 import os
 import random
+import shutil
 import sys
 import subprocess
 from contextlib import contextmanager
 import numpy as np
 import numbers
+from six import string_types, u
 
 if sys.version_info[0] < 3:
     reload(sys)
@@ -237,7 +239,73 @@ def any2unicode(text, encoding='utf8', errors='strict'):
 
 to_unicode = any2unicode
 
+# cosine distance
+# https://docs.scipy.org/doc/numpy-1.13.0/reference/generated/numpy.linalg.norm.html
+from numpy import dot
+from numpy.linalg import norm
+cosine = lambda a, b: dot(a, b)/(norm(a)*norm(b))
+
+def sigmoid(x):
+    return 1.0 / (1.0 + np.exp(-x))
 
 def call_on_class_only(*args, **kwargs):
     """Raise exception when load methods are called on instance"""
     raise AttributeError('This method should be called on a class object.')
+
+def is_digit(obj):
+    '''
+    Check if an object is Number
+    '''
+    return isinstance(obj, (numbers.Integral, numbers.Complex, numbers.Real))
+
+def is_zhs(str):
+    '''
+    Check if str is Chinese Word
+    '''
+    for i in str:
+        if not is_zh(i):
+            return False
+    return True
+
+def is_zh(ch):
+    """return True if ch is Chinese character.
+    full-width puncts/latins are not counted in.
+    """
+    x = ord(ch)
+    # CJK Radicals Supplement and Kangxi radicals
+    if 0x2e80 <= x <= 0x2fef:
+        return True
+    # CJK Unified Ideographs Extension A
+    elif 0x3400 <= x <= 0x4dbf:
+        return True
+    # CJK Unified Ideographs
+    elif 0x4e00 <= x <= 0x9fbb:
+        return True
+    # CJK Compatibility Ideographs
+    elif 0xf900 <= x <= 0xfad9:
+        return True
+    # CJK Unified Ideographs Extension B
+    elif 0x20000 <= x <= 0x2a6df:
+        return True
+    else:
+        return False
+
+def is_punct(ch):
+    x = ord(ch)
+    # in no-formal literals, space is used as punctuation sometimes.
+    if x < 127 and ascii.ispunct(x):
+        return True
+    # General Punctuation
+    elif 0x2000 <= x <= 0x206f:
+        return True
+    # CJK Symbols and Punctuation
+    elif 0x3000 <= x <= 0x303f:
+        return True
+    # Halfwidth and Fullwidth Forms
+    elif 0xff00 <= x <= 0xffef:
+        return True
+    # CJK Compatibility Forms
+    elif 0xfe30 <= x <= 0xfe4f:
+        return True
+    else:
+        return False
